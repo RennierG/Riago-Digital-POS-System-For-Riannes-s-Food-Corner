@@ -12,6 +12,15 @@ menuRoutes.post('/', ...admin, menuController.create);
 menuRoutes.put('/:id', ...admin, menuController.update);
 
 // The picture is sent as the raw file body (JPG, PNG or WEBP, up to 3 MB).
+
+const admin = [requireAuth, allowRoles('admin')];
+
+// ---- Task 4.1.1: public menu for customers ----
+menuRoutes.get('/', menuController.list);
+
+menuRoutes.get('/admin', ...admin, menuController.listAdmin);
+menuRoutes.post('/', ...admin, menuController.create);
+menuRoutes.put('/:id', ...admin, menuController.update);
 menuRoutes.post('/:id/image', ...admin, express.raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '3mb' }), menuController.setImage);
 menuRoutes.patch('/:id/availability', ...admin, menuController.setAvailability);
 menuRoutes.patch('/:id/stock', ...admin, menuController.setStock);

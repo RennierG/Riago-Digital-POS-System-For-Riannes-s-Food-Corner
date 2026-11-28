@@ -3,13 +3,21 @@ import { useApp } from '../context/AppContext.jsx'
 import HeaderContainer from '../components/HeaderContainer.jsx'
 
 const KitchenPage = () => {
+
     const { api, refresh, run, orders } = useApp()
+
+    const { api, refresh, run, orders, money } = useApp()
+
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
 
     useEffect(() => {
         refresh('kitchen').then(() => setLoading(false)).catch((e) => { setError(e.message); setLoading(false) })
+
     }, [refresh])
+
+    }, [])
+
 
     useEffect(() => {
         const tick = () => refresh('kitchen').catch(() => {})
@@ -56,6 +64,9 @@ const KitchenPage = () => {
         <>
             <HeaderContainer subtitle="| Kitchen Staff" showLogout={false} />
             <main className="pg">
+
+                <div></div>
+
                 <div className="kt-head">
                     <div>
                         <h1>Kitchen</h1>
