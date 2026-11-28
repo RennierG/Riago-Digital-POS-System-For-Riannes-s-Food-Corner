@@ -15,7 +15,7 @@ const transaction = async (fn) => {
 }
 
 const readLines = async (rawItems, db, { reduce }) => {
-    if (!Array.isArray(rawItems) || !rawItems.length) throw new HttpError(400, 'Add at least one item to the order.');
+    if (!Array.isArray(rawItems) || !rawItems.length) throw new HttpError(400, 'Add at least one item.');
     const wanted = new Map();
     for (const line of rawItems) {
         const id = toId(line.menu_item_id, 'menu item');
@@ -27,7 +27,7 @@ const readLines = async (rawItems, db, { reduce }) => {
         const item = await menuModel.findForUpdate(id, db);
         if (!item || item.is_archived) throw new HttpError(400, 'One of the items is no longer on the menu.');
         if (!item.is_available) throw new HttpError(400, `${item.name} is currently unavailable.`);
-        if (item.stock < quantity) throw new HttpError(400, `Not enough stock for ${item.name} (only ${item.stock} left).`);
+        if (item.stock < quantity) throw new HttpError(400, `Not enough stock for ${item.name}.`);
         if (reduce) await menuModel.reduceStock(id, quantity, db);
         lines.push({ menuItemId: id, name: item.name, price: Number(item.price), quantity });
     }
@@ -58,6 +58,12 @@ const transition = async (orderId, { orderType, status, kitchen, riderOnly }, us
     return fetchOne(id);
 }
 
+export const fetchForStaff = async (user) => {
+    const rows = await orderModel.fetchAll({ riderId: null });
+    if (user.role !== 'kitchen') return rows;
+    return rows.map((o) => ({ ...o, customer_id: null, customer_name: o.order_type === 'counter' ? o.customer_name : null, customer_phone: null, delivery_address: null, amount_received: null, change_amount: null }))
+}
+
 export const createCounter = async (body) => {
     const customerName = clean(body.customer_name) || 'Walk-in Customer';
     const id = await transaction(async (db) => {
@@ -77,17 +83,10 @@ export const release = (id, user) => {
     );
 }
 
-// ---- Task 3.2.1: fetchForStaff with kitchen privacy filter + table number ----
-export const fetchForStaff = async (user) => {
-    const rows = await orderModel.fetchAll({ riderId: null });
-    if (user.role !== 'kitchen') return rows;
-    return rows.map((o) => ({
-        ...o,
-        customer_id: null,
-        customer_name: o.order_type === 'counter' ? o.customer_name : null,
-        customer_phone: null,
-        delivery_address: null,
-        amount_received: null,
-        change_amount: null
-    }))
+// ---- Task 3.3.1: setKitchen ----
+export const setKitchen = (id, next, user) => {
+    if (!['preparing', 'ready'].includes(next)) throw new HttpError(400, 'Kitchen status must be preparing or ready.');
+    return transition(id, { status: ['in_process'], kitchen: next === 'preparing' ? ['new'] : ['new', 'preparing'] }, user,
+        (db, order) => orderModel.updateFields(order.id, { kitchen_status: next }, db)
+    );
 }
