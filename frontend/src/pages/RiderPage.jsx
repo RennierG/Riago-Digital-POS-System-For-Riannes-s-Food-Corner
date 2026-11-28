@@ -10,8 +10,6 @@ const RiderPage = () => {
 
     const { api, refresh, run, orders } = useApp()
 
-    const { api, refresh, run, orders, money } = useApp()
-
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
 
@@ -19,8 +17,6 @@ const RiderPage = () => {
         refresh('rider').then(() => setLoading(false)).catch((e) => { setError(e.message); setLoading(false) })
 
     }, [refresh])
-
-    }, [])
 
 
     useEffect(() => {

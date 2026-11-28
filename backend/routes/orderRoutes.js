@@ -9,11 +9,6 @@ const only = (...roles) => [requireAuth, allowRoles(...roles)];
 orderRoutes.post('/', ...only('customer'), orderController.create);
 orderRoutes.get('/mine', ...only('customer'), orderController.listMine);
 orderRoutes.get('/', ...only('admin', 'cashier', 'kitchen', 'rider'), orderController.listAll);
-const only = (...roles) => [requireAuth, allowRoles(...roles)];
-
-orderRoutes.get('/', ...only('admin', 'cashier', 'kitchen', 'rider'), orderController.listAll);
-orderRoutes.post('/', ...only('customer'), orderController.create);
-orderRoutes.get('/mine', ...only('customer'), orderController.listMine);
 orderRoutes.post('/counter', ...only('cashier', 'admin'), orderController.createCounter);
 orderRoutes.post('/:id/accept', ...only('cashier', 'admin'), orderController.accept);
 orderRoutes.post('/:id/reject', ...only('cashier', 'admin'), orderController.reject);

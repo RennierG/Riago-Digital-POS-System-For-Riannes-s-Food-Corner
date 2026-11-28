@@ -24,8 +24,6 @@ const readFields = (body) => {
         throw new HttpError(400, 'Food name is too long.');
     }
 
-    if (!name) throw new HttpError(400, 'Food name is required.');
-    if (name.length > 120) throw new HttpError(400, 'Food name is too long.');
     return {
         name,
         description: clean(body.description).slice(0, 255),
@@ -39,7 +37,6 @@ const guardDuplicate = (error) => {
     if (error.code === 'ER_DUP_ENTRY') {
         throw new HttpError(409, 'A menu item with that name already exists.');
     }
-    if (error.code === 'ER_DUP_ENTRY') throw new HttpError(409, 'A menu item with that name already exists.');
     throw error;
 }
 
@@ -52,7 +49,6 @@ const requireItem = async (id) => {
     if (!item) {
         throw new HttpError(404, 'Menu item not found.');
     }
-    if (!item) throw new HttpError(404, 'Menu item not found.');
     return item;
 }
 
@@ -123,29 +119,5 @@ export const setStock = async (id, stock) => {
 export const setArchived = async (id, archived) => {
     const item = await requireItem(id);
     await menuModel.setArchived(item.id, Boolean(archived));
-    if (!Buffer.isBuffer(buffer) || !buffer.length) throw new HttpError(400, 'Choose a picture to upload.');
-    if (buffer.length > MAX_IMAGE_BYTES) throw new HttpError(413, 'The picture is too large. Maximum size is 3 MB.');
-    const ext = detectImageExtension(buffer);
-    if (!ext) throw new HttpError(400, 'The picture must be a JPG, PNG or WEBP image.');
-    await fs.mkdir(MENU_IMAGE_DIR, { recursive: true });
-    const fileName = `${item.id}-${Date.now()}.${ext}`;
-    await fs.writeFile(path.join(MENU_IMAGE_DIR, fileName), buffer);
-    await menuModel.setImage(item.id, MENU_IMAGE_URL_PREFIX + fileName);
-    if (item.image_path && item.image_path.startsWith(MENU_IMAGE_URL_PREFIX)) {
-        await fs.unlink(path.join(MENU_IMAGE_DIR, path.basename(item.image_path))).catch(() => {});
-    }
-    return menuModel.findById(item.id);
-}
-
-export const setArchived = async (id, archived) => {
-    const item = await requireItem(id);
-    await menuModel.setArchived(item.id, Boolean(archived));
-    return menuModel.findById(item.id);
-}
-
-// ---- Task 2.2.1: added setStock ----
-export const setStock = async (id, stock) => {
-    const item = await requireItem(id);
-    await menuModel.setStock(item.id, toWholeNumber(stock, 'Stock', { max: 100000 }));
     return menuModel.findById(item.id);
 }
