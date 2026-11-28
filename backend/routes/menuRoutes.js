@@ -10,11 +10,11 @@ menuRoutes.get('/', menuController.list);
 menuRoutes.get('/admin', ...admin, menuController.listAdmin);
 menuRoutes.post('/', ...admin, menuController.create);
 menuRoutes.put('/:id', ...admin, menuController.update);
-
-// The picture is sent as the raw file body (JPG, PNG or WEBP, up to 3 MB).
 menuRoutes.post('/:id/image', ...admin, express.raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '3mb' }), menuController.setImage);
 menuRoutes.patch('/:id/availability', ...admin, menuController.setAvailability);
-menuRoutes.patch('/:id/stock', ...admin, menuController.setStock);
 menuRoutes.patch('/:id/archive', ...admin, menuController.setArchived);
+
+// ---- Task 2.2.1: added stock route ----
+menuRoutes.patch('/:id/stock', ...admin, menuController.setStock);
 
 export default menuRoutes;
