@@ -8,8 +8,9 @@ const only = (...roles) => [requireAuth, allowRoles(...roles)];
 orderRoutes.get('/', ...only('admin', 'cashier', 'kitchen'), orderController.listAll);
 orderRoutes.post('/counter', ...only('cashier', 'admin'), orderController.createCounter);
 orderRoutes.post('/:id/release', ...only('cashier', 'admin'), orderController.release);
-
-// ---- Task 3.3.1: kitchen status update ----
 orderRoutes.patch('/:id/kitchen', ...only('kitchen', 'admin'), orderController.setKitchen);
+
+// ---- Task 4.1.2: customer places online order ----
+orderRoutes.post('/', ...only('customer'), orderController.create);
 
 export default orderRoutes;
