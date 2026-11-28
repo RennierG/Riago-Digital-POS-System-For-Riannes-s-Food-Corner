@@ -5,6 +5,10 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import pool from './config/db.js';
+import authRoutes from './routes/authRoutes.js';
+import menuRoutes from './routes/menuRoutes.js';
+import orderRoutes from './routes/orderRoutes.js';
+import userRoutes from './routes/userRoutes.js';
 import { notFound, errorHandler } from './middleware/errorHandler.js';
 import { ensureBuiltInStaff } from './utils/builtInStaff.js';
 
@@ -38,13 +42,12 @@ app.get('/health', async (req, res) => {
     }
 });
 
-// NOTE: Route imports will be added per task:
-// import authRoutes from './routes/authRoutes.js';   <- task 1.1.1
-// import menuRoutes from './routes/menuRoutes.js';   <- task 2.1.1
-// import orderRoutes from './routes/orderRoutes.js'; <- task 2.3.1
-// import userRoutes from './routes/userRoutes.js';   <- task 1.2.1
-
+app.use('/auth', authRoutes);
+app.use('/menu', menuRoutes);
+app.use('/orders', orderRoutes);
+app.use('/users', userRoutes);
 app.use(notFound);
+
 app.use(errorHandler);
 
 // --- Startup checks

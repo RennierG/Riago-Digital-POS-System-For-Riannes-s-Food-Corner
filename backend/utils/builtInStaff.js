@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import pool from '../config/db.js';
 
 // Cashier and Kitchen have built-in accounts (no need for the admin to create them).
+// They are created/refreshed from backend/.env each time the server starts.
 export const builtInStaff = () => [
   { role: 'cashier', name: 'Cashier', username: (process.env.CASHIER_USERNAME || 'cashier').trim().toLowerCase(), password: process.env.CASHIER_PASSWORD || 'cashier123' },
   { role: 'kitchen', name: 'Kitchen', username: (process.env.KITCHEN_USERNAME || 'kitchen').trim().toLowerCase(), password: process.env.KITCHEN_PASSWORD || 'kitchen123' }

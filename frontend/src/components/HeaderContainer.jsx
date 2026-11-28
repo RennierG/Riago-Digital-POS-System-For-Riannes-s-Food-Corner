@@ -1,6 +1,6 @@
 import { useAuth } from '../context/AuthContext.jsx'
 
-const HeaderContainer = ({ title, subtitle, showLogout = true, children }) => {
+const HeaderContainer = ({ subtitle, showLogout = true, children }) => {
     const { session, logout } = useAuth()
 
     return (

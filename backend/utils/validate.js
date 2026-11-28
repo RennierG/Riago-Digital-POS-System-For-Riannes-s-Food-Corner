@@ -18,7 +18,7 @@ export function toWholeNumber(value, label, { min = 0, max = 1000000 } = {}) {
 
 export function toMoney(value, label) {
   const n = Number(value);
-  if (clean(value) === '' || !Number.isFinite(n) || n <= 0 || n > 9999) throw new HttpError(400, `${label} must be a number greater than 0 and at most 9999.`);
+  if (clean(value) === '' || !Number.isFinite(n) || n <= 0 || n > 1000000) throw new HttpError(400, `${label} must be a number greater than 0.`);
   return Math.round(n * 100) / 100;
 }
 
