@@ -14,6 +14,7 @@ const fetchOne = async (id) => { const all = await orderModel.fetchAll(); return
 const transition = async (orderId, { orderType, status, kitchen, riderOnly }, user, apply) => { const id = toId(orderId, 'order'); await transaction(async (db) => { const order = await orderModel.findForUpdate(id, db); if (!order) throw new HttpError(404, 'Order not found.'); if (orderType && order.order_type !== orderType) throw new HttpError(409, `This action is only for ${orderType} orders.`); if (status && !status.includes(order.status)) throw new HttpError(409, 'This order is no longer in the right state.'); if (kitchen && !kitchen.includes(order.kitchen_status)) throw new HttpError(409, 'The kitchen has not finished this order yet.'); if (riderOnly && order.rider_id !== user.id) throw new HttpError(403, 'This order is not assigned to you.'); await apply(db, order); }); return fetchOne(id); }
 
 export const fetchForStaff = async (user) => { const rows = await orderModel.fetchAll({ riderId: null }); if (user.role !== 'kitchen') return rows; return rows.map((o) => ({ ...o, customer_id: null, customer_name: o.order_type === 'counter' ? o.customer_name : null, customer_phone: null, delivery_address: null, amount_received: null, change_amount: null })) }
+export const fetchMine = (user) => orderModel.fetchByCustomer(user.id);
 export const createCounter = async (body) => { const customerName = clean(body.customer_name) || 'Walk-in Customer'; const id = await transaction(async (db) => { const lines = await readLines(body.items, db, { reduce: true }); const total = money(lines.reduce((sum, l) => sum + l.price * l.quantity, 0)); const received = Number(body.amount_received); if (!Number.isFinite(received) || received < total) throw new HttpError(400, 'Amount received must cover the total.'); const saved = await saveOrder(db, { orderType: 'counter', customerId: null, customerName, customerPhone: null, address: null, amountReceived: money(received), changeAmount: money(received - total), status: 'in_process', kitchenStatus: 'new' }, lines, 'C-', 4); return saved.id; }); return fetchOne(id); }
 export const createOnline = async (user, body) => { const customerName = clean(body.customer_name); const address = clean(body.delivery_address); if (!customerName) throw new HttpError(400, 'Name is required.'); if (!address) throw new HttpError(400, 'Delivery address is required.'); const phone = toPhone(body.customer_phone); const id = await transaction(async (db) => { const lines = await readLines(body.items, db, { reduce: false }); const saved = await saveOrder(db, { orderType: 'online', customerId: user.id, customerName, customerPhone: phone, address, amountReceived: null, changeAmount: null, status: 'placed', kitchenStatus: 'new' }, lines, 'ON-', 6); return saved.id; }); return fetchOne(id); }
 export const release = (id, user) => transition(id, { orderType: 'counter', status: ['in_process'], kitchen: ['ready'] }, user, (db, order) => orderModel.updateFields(order.id, { status: 'complete', kitchen_status: 'completed' }, db));
@@ -21,7 +22,12 @@ export const setKitchen = (id, next, user) => { if (!['preparing', 'ready'].incl
 export const accept = (id, user) => { return transition(id, { orderType: 'online', status: ['placed'] }, user, async (db, order) => { const items = await orderModel.fetchItemsOf(order.id, db); await readLines(items.filter((i) => i.menu_item_id).map((i) => ({ menu_item_id: i.menu_item_id, quantity: i.quantity })), db, { reduce: true }); await orderModel.updateFields(order.id, { status: 'in_process', kitchen_status: 'new' }, db); }); }
 export const reject = (id, user) => transition(id, { status: ['placed'] }, user, (db, order) => orderModel.updateFields(order.id, { status: 'rejected' }, db));
 
-// ---- Task 4.3.1: customer's own orders ----
-export const fetchMine = (user) => {
-    return orderModel.fetchByCustomer(user.id);
+// ---- Task 5.1.1: assign rider to ready online order ----
+export const assignRider = async (id, riderId, user) => {
+    const rider = toId(riderId, 'rider');
+    if (!(await userModel.riderExists(rider))) throw new HttpError(404, 'Rider not found.');
+    return transition(id, { orderType: 'online', status: ['in_process'], kitchen: ['ready'] }, user, async (db, order) => {
+        if (order.rider_id) throw new HttpError(409, 'A rider is already assigned to this order.');
+        await orderModel.updateFields(order.id, { rider_id: rider }, db);
+    });
 }
