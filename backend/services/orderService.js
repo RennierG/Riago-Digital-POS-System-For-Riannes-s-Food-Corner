@@ -18,16 +18,10 @@ export const createCounter = async (body) => { const customerName = clean(body.c
 export const createOnline = async (user, body) => { const customerName = clean(body.customer_name); const address = clean(body.delivery_address); if (!customerName) throw new HttpError(400, 'Name is required.'); if (!address) throw new HttpError(400, 'Delivery address is required.'); const phone = toPhone(body.customer_phone); const id = await transaction(async (db) => { const lines = await readLines(body.items, db, { reduce: false }); const saved = await saveOrder(db, { orderType: 'online', customerId: user.id, customerName, customerPhone: phone, address, amountReceived: null, changeAmount: null, status: 'placed', kitchenStatus: 'new' }, lines, 'ON-', 6); return saved.id; }); return fetchOne(id); }
 export const release = (id, user) => transition(id, { orderType: 'counter', status: ['in_process'], kitchen: ['ready'] }, user, (db, order) => orderModel.updateFields(order.id, { status: 'complete', kitchen_status: 'completed' }, db));
 export const setKitchen = (id, next, user) => { if (!['preparing', 'ready'].includes(next)) throw new HttpError(400, 'Kitchen status must be preparing or ready.'); return transition(id, { status: ['in_process'], kitchen: next === 'preparing' ? ['new'] : ['new', 'preparing'] }, user, (db, order) => orderModel.updateFields(order.id, { kitchen_status: next }, db)); }
+export const accept = (id, user) => { return transition(id, { orderType: 'online', status: ['placed'] }, user, async (db, order) => { const items = await orderModel.fetchItemsOf(order.id, db); await readLines(items.filter((i) => i.menu_item_id).map((i) => ({ menu_item_id: i.menu_item_id, quantity: i.quantity })), db, { reduce: true }); await orderModel.updateFields(order.id, { status: 'in_process', kitchen_status: 'new' }, db); }); }
+export const reject = (id, user) => transition(id, { status: ['placed'] }, user, (db, order) => orderModel.updateFields(order.id, { status: 'rejected' }, db));
 
-// ---- Task 4.2.1: accept and reject online orders ----
-export const accept = (id, user) => {
-    return transition(id, { orderType: 'online', status: ['placed'] }, user, async (db, order) => {
-        const items = await orderModel.fetchItemsOf(order.id, db);
-        await readLines(items.filter((i) => i.menu_item_id).map((i) => ({ menu_item_id: i.menu_item_id, quantity: i.quantity })), db, { reduce: true });
-        await orderModel.updateFields(order.id, { status: 'in_process', kitchen_status: 'new' }, db);
-    });
-}
-
-export const reject = (id, user) => {
-    return transition(id, { status: ['placed'] }, user, (db, order) => orderModel.updateFields(order.id, { status: 'rejected' }, db));
+// ---- Task 4.3.1: customer's own orders ----
+export const fetchMine = (user) => {
+    return orderModel.fetchByCustomer(user.id);
 }
