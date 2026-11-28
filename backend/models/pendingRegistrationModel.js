@@ -17,7 +17,7 @@ export const findForUpdate = async (email, db = pool) => {
     );
     return rows[0] || null;
 }
-
+/*==========hanggang dine 1.0 Rennier ====*/
 export const remove = async (email, db = pool) => {
     await db.execute(
         'DELETE FROM pending_registrations WHERE email = ?',

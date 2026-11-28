@@ -39,18 +39,18 @@ export const AuthProvider = ({ children }) => {
     }, [])
 
     const logout = useCallback(() => {
+        const role = getSession()?.role
         sessionStorage.removeItem(SESSION_KEY)
         sessionStorage.removeItem(TOKEN_KEY)
         setSession(null)
         setApiToken('')
-        const role = getSession()?.role
         if (['cashier', 'kitchen'].includes(role)) {
             window.location.reload()
             return
         }
-        const isStaff = session?.role !== 'customer'
+        const isStaff = role !== 'customer'
         navigate(isStaff ? '/staff-login' : '/login', { replace: true })
-    }, [navigate, session])
+    }, [navigate])
 
     return (
         <AuthContext.Provider value={{ session, apiToken, setApiSession, logout }}>

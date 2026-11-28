@@ -1,7 +1,11 @@
 import { useApp } from '../context/AppContext.jsx'
 
 const OrderCard = ({ order, actions }) => {
+
+    const { money, statusClass } = useApp()
+
     const { money, statusClass, ago } = useApp()
+
     const o = order
 
     return (

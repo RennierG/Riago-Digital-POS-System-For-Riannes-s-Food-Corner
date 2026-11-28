@@ -3,6 +3,16 @@ import * as menuController from '../controllers/menuController.js';
 import { requireAuth, allowRoles } from '../middleware/auth.js';
 
 const menuRoutes = express.Router();
+
+const admin = [requireAuth, allowRoles('admin')];
+
+menuRoutes.get('/', menuController.list);
+menuRoutes.get('/admin', ...admin, menuController.listAdmin);
+menuRoutes.post('/', ...admin, menuController.create);
+menuRoutes.put('/:id', ...admin, menuController.update);
+
+// The picture is sent as the raw file body (JPG, PNG or WEBP, up to 3 MB).
+
 const admin = [requireAuth, allowRoles('admin')];
 
 // ---- Task 4.1.1: public menu for customers ----

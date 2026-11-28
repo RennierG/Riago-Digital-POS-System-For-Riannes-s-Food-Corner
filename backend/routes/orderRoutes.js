@@ -3,6 +3,12 @@ import * as orderController from '../controllers/orderController.js';
 import { requireAuth, allowRoles } from '../middleware/auth.js';
 
 const orderRoutes = express.Router();
+
+const only = (...roles) => [requireAuth, allowRoles(...roles)];
+
+orderRoutes.post('/', ...only('customer'), orderController.create);
+orderRoutes.get('/mine', ...only('customer'), orderController.listMine);
+orderRoutes.get('/', ...only('admin', 'cashier', 'kitchen', 'rider'), orderController.listAll);
 const only = (...roles) => [requireAuth, allowRoles(...roles)];
 
 orderRoutes.get('/', ...only('admin', 'cashier', 'kitchen', 'rider'), orderController.listAll);

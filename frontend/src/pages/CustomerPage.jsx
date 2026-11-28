@@ -1,4 +1,8 @@
+
+import { useState, useEffect } from 'react'
+
 import { useState, useEffect, useCallback } from 'react'
+
 import { useAuth } from '../context/AuthContext.jsx'
 import { useApp } from '../context/AppContext.jsx'
 import HeaderContainer from '../components/HeaderContainer.jsx'
@@ -12,7 +16,11 @@ const CUSTOMER_LABEL = {
 
 const CustomerPage = () => {
     const { session } = useAuth()
+
+    const { api, refresh, menu, orders, money, picUrl, hasPic, statusClass } = useApp()
+
     const { api, refresh, run, menu, orders, money, picUrl, hasPic, statusClass } = useApp()
+
 
     const [cart, setCart] = useState({})
     const [activeCategory, setActiveCategory] = useState('All')
@@ -27,7 +35,11 @@ const CustomerPage = () => {
         refresh('customer')
             .then(() => setLoading(false))
             .catch((e) => { setError(e.message); setLoading(false) })
+
+    }, [refresh])
+
     }, [])
+
 
     // Auto-refresh every 5 seconds
     useEffect(() => {

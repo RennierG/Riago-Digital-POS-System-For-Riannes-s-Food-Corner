@@ -4,7 +4,11 @@ import HeaderContainer from '../components/HeaderContainer.jsx'
 import StatCard from '../components/StatCard.jsx'
 
 const CashierPage = () => {
+
+    const { api, refresh, run, menu, orders, riderList, money, ago, chipClass, chipLabel } = useApp()
+
     const { api, refresh, run, menu, orders, riderList, money, picUrl, hasPic, statusClass, ago, chipClass, chipLabel } = useApp()
+
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
     const [activeTab, setActiveTab] = useState('requests')
@@ -16,7 +20,11 @@ const CashierPage = () => {
 
     useEffect(() => {
         refresh('cashier').then(() => setLoading(false)).catch((e) => { setError(e.message); setLoading(false) })
+
+    }, [refresh])
+=======
     }, [])
+
 
     useEffect(() => {
         const tick = () => refresh('cashier').catch(() => {})

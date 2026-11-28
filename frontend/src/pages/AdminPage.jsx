@@ -11,7 +11,6 @@ const AdminPage = () => {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
     const [active, setActive] = useState('Dashboard')
-    const [range, setRange] = useState('7D')
     const [settings, setSettings] = useState(getSettings)
     const photoInputRef = useRef(null)
     const photoForRef = useRef(null)
@@ -21,7 +20,7 @@ const AdminPage = () => {
 
     useEffect(() => {
         refresh('admin').then(() => setLoading(false)).catch((e) => { setError(e.message); setLoading(false) })
-    }, [])
+    }, [refresh])
 
     const setPage = async (p) => {
         setActive(p)

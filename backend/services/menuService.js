@@ -7,6 +7,8 @@ import { clean, toId, toMoney, toWholeNumber } from '../utils/validate.js';
 
 const TONES = ['pink', 'coral', 'peach', 'gold', 'red', 'orange'];
 
+// Images are saved in <project root>/images/menu/
+
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const MENU_IMAGE_DIR = path.join(projectRoot, 'images', 'menu');
 const MENU_IMAGE_URL_PREFIX = 'images/menu/';
@@ -14,6 +16,14 @@ const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
 
 const readFields = (body) => {
     const name = clean(body.name);
+
+    if (!name) {
+        throw new HttpError(400, 'Food name is required.');
+    }
+    if (name.length > 120) {
+        throw new HttpError(400, 'Food name is too long.');
+    }
+
     if (!name) throw new HttpError(400, 'Food name is required.');
     if (name.length > 120) throw new HttpError(400, 'Food name is too long.');
     return {
@@ -26,6 +36,9 @@ const readFields = (body) => {
 }
 
 const guardDuplicate = (error) => {
+    if (error.code === 'ER_DUP_ENTRY') {
+        throw new HttpError(409, 'A menu item with that name already exists.');
+    }
     if (error.code === 'ER_DUP_ENTRY') throw new HttpError(409, 'A menu item with that name already exists.');
     throw error;
 }
@@ -36,6 +49,9 @@ export const fetchAll = (admin = false) => {
 
 const requireItem = async (id) => {
     const item = await menuModel.findById(toId(id));
+    if (!item) {
+        throw new HttpError(404, 'Menu item not found.');
+    }
     if (!item) throw new HttpError(404, 'Menu item not found.');
     return item;
 }
@@ -69,6 +85,44 @@ const detectImageExtension = (b) => {
 
 export const setImage = async (id, buffer) => {
     const item = await requireItem(id);
+
+    if (!Buffer.isBuffer(buffer) || !buffer.length) {
+        throw new HttpError(400, 'Choose a picture to upload.');
+    }
+    if (buffer.length > MAX_IMAGE_BYTES) {
+        throw new HttpError(413, 'The picture is too large. Maximum size is 3 MB.');
+    }
+
+    const ext = detectImageExtension(buffer);
+
+    if (!ext) {
+        throw new HttpError(400, 'The picture must be a JPG, PNG or WEBP image.');
+    }
+
+    // Make sure the images/menu folder exists
+    await fs.mkdir(MENU_IMAGE_DIR, { recursive: true });
+
+    const fileName = `${item.id}-${Date.now()}.${ext}`;
+    await fs.writeFile(path.join(MENU_IMAGE_DIR, fileName), buffer);
+    await menuModel.setImage(item.id, MENU_IMAGE_URL_PREFIX + fileName);
+
+    // Remove the previous picture so old files do not pile up.
+    if (item.image_path && item.image_path.startsWith(MENU_IMAGE_URL_PREFIX)) {
+        await fs.unlink(path.join(MENU_IMAGE_DIR, path.basename(item.image_path))).catch(() => {});
+    }
+
+    return menuModel.findById(item.id);
+}
+
+export const setStock = async (id, stock) => {
+    const item = await requireItem(id);
+    await menuModel.setStock(item.id, toWholeNumber(stock, 'Stock', { max: 100000 }));
+    return menuModel.findById(item.id);
+}
+
+export const setArchived = async (id, archived) => {
+    const item = await requireItem(id);
+    await menuModel.setArchived(item.id, Boolean(archived));
     if (!Buffer.isBuffer(buffer) || !buffer.length) throw new HttpError(400, 'Choose a picture to upload.');
     if (buffer.length > MAX_IMAGE_BYTES) throw new HttpError(413, 'The picture is too large. Maximum size is 3 MB.');
     const ext = detectImageExtension(buffer);
