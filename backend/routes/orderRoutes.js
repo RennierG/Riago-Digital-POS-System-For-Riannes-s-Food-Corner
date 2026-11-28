@@ -5,10 +5,10 @@ import { requireAuth, allowRoles } from '../middleware/auth.js';
 const orderRoutes = express.Router();
 const only = (...roles) => [requireAuth, allowRoles(...roles)];
 
-orderRoutes.get('/', ...only('admin', 'cashier'), orderController.listAll);
 orderRoutes.post('/counter', ...only('cashier', 'admin'), orderController.createCounter);
-
-// ---- Task 3.1.2: release counter orders ----
 orderRoutes.post('/:id/release', ...only('cashier', 'admin'), orderController.release);
+
+// ---- Task 3.2.1: kitchen can now fetch orders ----
+orderRoutes.get('/', ...only('admin', 'cashier', 'kitchen'), orderController.listAll);
 
 export default orderRoutes;
