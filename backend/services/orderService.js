@@ -17,11 +17,7 @@ const transaction = async (fn) => {
 const readLines = async (rawItems, db, { reduce }) => {
     if (!Array.isArray(rawItems) || !rawItems.length) throw new HttpError(400, 'Add at least one item.');
     const wanted = new Map();
-    for (const line of rawItems) {
-        const id = toId(line.menu_item_id, 'menu item');
-        const qty = toWholeNumber(line.quantity, 'Quantity', { min: 1, max: 99 });
-        wanted.set(id, (wanted.get(id) || 0) + qty);
-    }
+    for (const line of rawItems) { const id = toId(line.menu_item_id, 'menu item'); wanted.set(id, (wanted.get(id) || 0) + toWholeNumber(line.quantity, 'Quantity', { min: 1, max: 99 })); }
     const lines = [];
     for (const [id, quantity] of [...wanted].sort((a, b) => a[0] - b[0])) {
         const item = await menuModel.findForUpdate(id, db);
@@ -50,7 +46,7 @@ const transition = async (orderId, { orderType, status, kitchen, riderOnly }, us
         const order = await orderModel.findForUpdate(id, db);
         if (!order) throw new HttpError(404, 'Order not found.');
         if (orderType && order.order_type !== orderType) throw new HttpError(409, `This action is only for ${orderType} orders.`);
-        if (status && !status.includes(order.status)) throw new HttpError(409, 'This order is no longer in the right state for that action.');
+        if (status && !status.includes(order.status)) throw new HttpError(409, 'This order is no longer in the right state.');
         if (kitchen && !kitchen.includes(order.kitchen_status)) throw new HttpError(409, 'The kitchen has not finished this order yet.');
         if (riderOnly && order.rider_id !== user.id) throw new HttpError(403, 'This order is not assigned to you.');
         await apply(db, order);
@@ -77,16 +73,20 @@ export const createCounter = async (body) => {
     return fetchOne(id);
 }
 
-export const release = (id, user) => {
-    return transition(id, { orderType: 'counter', status: ['in_process'], kitchen: ['ready'] }, user,
-        (db, order) => orderModel.updateFields(order.id, { status: 'complete', kitchen_status: 'completed' }, db)
-    );
-}
+export const release = (id, user) => transition(id, { orderType: 'counter', status: ['in_process'], kitchen: ['ready'] }, user, (db, order) => orderModel.updateFields(order.id, { status: 'complete', kitchen_status: 'completed' }, db));
+export const setKitchen = (id, next, user) => { if (!['preparing', 'ready'].includes(next)) throw new HttpError(400, 'Kitchen status must be preparing or ready.'); return transition(id, { status: ['in_process'], kitchen: next === 'preparing' ? ['new'] : ['new', 'preparing'] }, user, (db, order) => orderModel.updateFields(order.id, { kitchen_status: next }, db)); }
 
-// ---- Task 3.3.1: setKitchen ----
-export const setKitchen = (id, next, user) => {
-    if (!['preparing', 'ready'].includes(next)) throw new HttpError(400, 'Kitchen status must be preparing or ready.');
-    return transition(id, { status: ['in_process'], kitchen: next === 'preparing' ? ['new'] : ['new', 'preparing'] }, user,
-        (db, order) => orderModel.updateFields(order.id, { kitchen_status: next }, db)
-    );
+// ---- Task 4.1.2: online COD order placement ----
+export const createOnline = async (user, body) => {
+    const customerName = clean(body.customer_name);
+    const address = clean(body.delivery_address);
+    if (!customerName) throw new HttpError(400, 'Name is required.');
+    if (!address) throw new HttpError(400, 'Delivery address is required.');
+    const phone = toPhone(body.customer_phone);
+    const id = await transaction(async (db) => {
+        const lines = await readLines(body.items, db, { reduce: false });
+        const saved = await saveOrder(db, { orderType: 'online', customerId: user.id, customerName, customerPhone: phone, address, amountReceived: null, changeAmount: null, status: 'placed', kitchenStatus: 'new' }, lines, 'ON-', 6);
+        return saved.id;
+    });
+    return fetchOne(id);
 }
