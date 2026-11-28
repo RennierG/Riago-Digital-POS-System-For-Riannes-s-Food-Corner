@@ -11,14 +11,17 @@ const money = (n) => Math.round(n * 100) / 100;
 const transaction = async (fn) => {
     const db = await pool.getConnection();
     try { await db.beginTransaction(); const result = await fn(db); await db.commit(); return result; }
-    catch (e) { await db.rollback(); throw e; }
-    finally { db.release(); }
+    catch (e) { await db.rollback(); throw e; } finally { db.release(); }
 }
 
 const readLines = async (rawItems, db, { reduce }) => {
     if (!Array.isArray(rawItems) || !rawItems.length) throw new HttpError(400, 'Add at least one item to the order.');
     const wanted = new Map();
-    for (const line of rawItems) { wanted.set(toId(line.menu_item_id, 'menu item'), (wanted.get(toId(line.menu_item_id, 'menu item')) || 0) + toWholeNumber(line.quantity, 'Quantity', { min: 1, max: 99 })); }
+    for (const line of rawItems) {
+        const id = toId(line.menu_item_id, 'menu item');
+        const qty = toWholeNumber(line.quantity, 'Quantity', { min: 1, max: 99 });
+        wanted.set(id, (wanted.get(id) || 0) + qty);
+    }
     const lines = [];
     for (const [id, quantity] of [...wanted].sort((a, b) => a[0] - b[0])) {
         const item = await menuModel.findForUpdate(id, db);
@@ -41,9 +44,18 @@ const saveOrder = async (db, header, lines, prefix, padSize) => {
 
 const fetchOne = async (id) => { const all = await orderModel.fetchAll(); return all.find((o) => o.id === id); }
 
-export const fetchForStaff = async (user) => {
-    const rows = await orderModel.fetchAll({ riderId: null });
-    return rows;
+const transition = async (orderId, { orderType, status, kitchen, riderOnly }, user, apply) => {
+    const id = toId(orderId, 'order');
+    await transaction(async (db) => {
+        const order = await orderModel.findForUpdate(id, db);
+        if (!order) throw new HttpError(404, 'Order not found.');
+        if (orderType && order.order_type !== orderType) throw new HttpError(409, `This action is only for ${orderType} orders.`);
+        if (status && !status.includes(order.status)) throw new HttpError(409, 'This order is no longer in the right state for that action.');
+        if (kitchen && !kitchen.includes(order.kitchen_status)) throw new HttpError(409, 'The kitchen has not finished this order yet.');
+        if (riderOnly && order.rider_id !== user.id) throw new HttpError(403, 'This order is not assigned to you.');
+        await apply(db, order);
+    });
+    return fetchOne(id);
 }
 
 export const createCounter = async (body) => {
@@ -59,23 +71,23 @@ export const createCounter = async (body) => {
     return fetchOne(id);
 }
 
-const transition = async (orderId, { orderType, status, kitchen, riderOnly }, user, apply) => {
-    const id = toId(orderId, 'order');
-    await transaction(async (db) => {
-        const order = await orderModel.findForUpdate(id, db);
-        if (!order) throw new HttpError(404, 'Order not found.');
-        if (orderType && order.order_type !== orderType) throw new HttpError(409, `This action is only for ${orderType} orders.`);
-        if (status && !status.includes(order.status)) throw new HttpError(409, 'This order is no longer in the right state for that action.');
-        if (kitchen && !kitchen.includes(order.kitchen_status)) throw new HttpError(409, 'The kitchen has not finished this order yet.');
-        if (riderOnly && order.rider_id !== user.id) throw new HttpError(403, 'This order is not assigned to you.');
-        await apply(db, order);
-    });
-    return fetchOne(id);
-}
-
-// ---- Task 3.1.2: release counter orders ----
 export const release = (id, user) => {
     return transition(id, { orderType: 'counter', status: ['in_process'], kitchen: ['ready'] }, user,
         (db, order) => orderModel.updateFields(order.id, { status: 'complete', kitchen_status: 'completed' }, db)
     );
+}
+
+// ---- Task 3.2.1: fetchForStaff with kitchen privacy filter + table number ----
+export const fetchForStaff = async (user) => {
+    const rows = await orderModel.fetchAll({ riderId: null });
+    if (user.role !== 'kitchen') return rows;
+    return rows.map((o) => ({
+        ...o,
+        customer_id: null,
+        customer_name: o.order_type === 'counter' ? o.customer_name : null,
+        customer_phone: null,
+        delivery_address: null,
+        amount_received: null,
+        change_amount: null
+    }))
 }
