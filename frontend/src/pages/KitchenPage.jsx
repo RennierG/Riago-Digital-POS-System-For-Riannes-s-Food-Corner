@@ -56,6 +56,7 @@ const KitchenPage = () => {
         <>
             <HeaderContainer subtitle="| Kitchen Staff" showLogout={false} />
             <main className="pg">
+                <div></div>
                 <div className="kt-head">
                     <div>
                         <h1>Kitchen</h1>
