@@ -6,8 +6,9 @@ const orderRoutes = express.Router();
 const only = (...roles) => [requireAuth, allowRoles(...roles)];
 
 orderRoutes.get('/', ...only('admin', 'cashier'), orderController.listAll);
-
-// ---- Task 3.1.1: counter orders ----
 orderRoutes.post('/counter', ...only('cashier', 'admin'), orderController.createCounter);
+
+// ---- Task 3.1.2: release counter orders ----
+orderRoutes.post('/:id/release', ...only('cashier', 'admin'), orderController.release);
 
 export default orderRoutes;
